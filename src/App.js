@@ -20,7 +20,7 @@ function App() {
 		top: 0,
 		left: 0,
 	};
-	const frameRate = 3;
+	const frameRate = 1;
 
 	const canvasRef = useRef();
 	const intervalRef = useRef();
