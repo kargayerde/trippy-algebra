@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/trippy-algebra/static/css/main.aa1f3604.css",
-    "main.js": "/trippy-algebra/static/js/main.a2309b94.js",
+    "main.js": "/trippy-algebra/static/js/main.958b3d49.js",
     "index.html": "/trippy-algebra/index.html",
     "main.aa1f3604.css.map": "/trippy-algebra/static/css/main.aa1f3604.css.map",
-    "main.a2309b94.js.map": "/trippy-algebra/static/js/main.a2309b94.js.map"
+    "main.958b3d49.js.map": "/trippy-algebra/static/js/main.958b3d49.js.map"
   },
   "entrypoints": [
     "static/css/main.aa1f3604.css",
-    "static/js/main.a2309b94.js"
+    "static/js/main.958b3d49.js"
   ]
 }
