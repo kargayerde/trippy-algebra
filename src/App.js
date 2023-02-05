@@ -59,13 +59,14 @@ function App() {
 	};
 
 	useEffect(() => {
-		const randomScenes = generateRandomSceneSet(300, 2);
-		setSceneSet(randomScenes);
+		setSceneSet(generateRandomSceneSet(100, 2));
 	}, []);
 
 	useEffect(() => {
 		clearInterval(intervalRef.current);
 		renderFrame(Object.values(sceneSet)[selectedSceneIndex]);
+		if (selectedSceneIndex === Object.values(sceneSet).length - 1)
+			setSceneSet(generateRandomSceneSet(100, 2));
 
 		intervalRef.current = setInterval(
 			() => setSelectedSceneIndex((prev) => (prev + 1) % Object.values(sceneSet).length),
