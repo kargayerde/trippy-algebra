@@ -35,8 +35,9 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 		baseSize,
 		origin = [0, 0],
 		growthFactor = 0,
+		alpha = 0.1,
 	}) => {
-		context.globalAlpha = 0.1;
+		context.globalAlpha = alpha;
 		for (let i = 0; i < 2 * turnCount; i += rotationStep) {
 			const angle = Math.PI * i;
 			context.strokeStyle = `hsl(${toDegrees(angle)}, 100%, 50%)`;
@@ -203,10 +204,11 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 				const curveConstructor =
 					Math.random() > 0.5 ? exampleMatrices.square : exampleMatrices.triangle;
 				const rotationStep = Math.random() / 20;
-				const turnCount = Math.random() * 60;
+				const turnCount = Math.random() * 40;
 				const baseSize = 10;
 				const growthFactor = Math.random() * 60;
 				const origin = [(Math.random() - 0.5) * 1000, (Math.random() - 0.5) * 1000];
+				const alpha = Math.random() / 10;
 
 				randomScene.push([
 					drawRotations,
@@ -217,10 +219,11 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 						baseSize,
 						growthFactor,
 						origin,
+						alpha,
 					},
 				]);
 			}
-			randomSceneSet[`rand-${i}-${elementCount}`] = randomScene;
+			randomSceneSet[`rand-${i}-${elementCount}el`] = randomScene;
 		}
 		console.log({ randomSceneSet });
 		return randomSceneSet;
