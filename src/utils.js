@@ -15,16 +15,16 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 				[origin[0] + size, origin[1] + size],
 				[origin[0], origin[1] + size],
 			]),
-		randocurve: new Matrix([
-			[0, 0],
-			[-50, -200],
-			[220, 50],
-			[220, 150],
-			[69, 420],
-			[-20, 50],
-			[-200, -50],
-			[-158, -100],
-		]),
+		// randocurve: new Matrix([
+		// 	[0, 0],
+		// 	[-50, -200],
+		// 	[220, 50],
+		// 	[220, 150],
+		// 	[69, 420],
+		// 	[-20, 50],
+		// 	[-200, -50],
+		// 	[-158, -100],
+		// ]),
 	};
 
 	const drawRotations = ({
@@ -196,38 +196,47 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 		],
 	};
 
+	const generateRandomScene = (elementCount) => {
+		let randomScene = [];
+		for (let j = 0; j < elementCount; j++) {
+			const curveConstructor =
+				Math.random() > 0.5 ? exampleMatrices.square : exampleMatrices.triangle;
+			const rotationStep = Math.random() / 20;
+			const turnCount = Math.random() * 20;
+			const baseSize = 10;
+			const growthFactor = Math.random() * 60;
+			const origin = [(Math.random() - 0.5) * 1000, (Math.random() - 0.5) * 1000];
+			const alpha = Math.max(0.02, Math.random() / 10);
+
+			randomScene.push([
+				drawRotations,
+				{
+					curveConstructor,
+					rotationStep,
+					turnCount,
+					baseSize,
+					growthFactor,
+					origin,
+					alpha,
+				},
+			]);
+		}
+
+		const identifier = `rand-${elementCount}el`;
+
+		return { identifier, randomScene };
+	};
+
 	const generateRandomSceneSet = (size, elementCount) => {
 		let randomSceneSet = {};
 		for (let i = 0; i < size; i++) {
-			let randomScene = [];
-			for (let j = 0; j < elementCount; j++) {
-				const curveConstructor =
-					Math.random() > 0.5 ? exampleMatrices.square : exampleMatrices.triangle;
-				const rotationStep = Math.random() / 20;
-				const turnCount = Math.random() * 40;
-				const baseSize = 10;
-				const growthFactor = Math.random() * 60;
-				const origin = [(Math.random() - 0.5) * 1000, (Math.random() - 0.5) * 1000];
-				const alpha = Math.random() / 10;
+			const { identifier, randomScene } = generateRandomScene(elementCount);
 
-				randomScene.push([
-					drawRotations,
-					{
-						curveConstructor,
-						rotationStep,
-						turnCount,
-						baseSize,
-						growthFactor,
-						origin,
-						alpha,
-					},
-				]);
-			}
-			randomSceneSet[`rand-${i}-${elementCount}el`] = randomScene;
+			randomSceneSet[i + "-" + identifier] = randomScene;
 		}
 		console.log({ randomSceneSet });
 		return randomSceneSet;
 	};
 
-	return { testScenes, generateRandomSceneSet, drawAxes, drawGrid };
+	return { testScenes, generateRandomSceneSet, generateRandomScene, drawAxes, drawGrid };
 };
