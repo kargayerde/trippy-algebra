@@ -23,19 +23,20 @@ function App() {
 	});
 	// const [sceneSet, setSceneSet] = useState([]);
 	// const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
-	const [targetFPS, setTargetFPS] = useState(1/3);
+	const [targetFPS, setTargetFPS] = useState(1 / 3);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [lastScene, setLastScene] = useState();
+	const [sceneBuffer, setSceneBuffer] = useState([]);
 	const canvasStyle = {
 		width: canvasWidth,
 		height: canvasHeight,
 		position: "fixed",
-		top: -1 * (diagonal - screenHeight) / 2,
-		left: -1 * (diagonal - screenWidth) / 2,
+		top: (-1 * (diagonal - screenHeight)) / 2,
+		left: (-1 * (diagonal - screenWidth)) / 2,
 	};
-
+	const bufferSize = 2;
 	let asyncRendering = false;
-	let sceneSet = [];
+	let sceneSet = [...sceneBuffer];
 	let selectedSceneIndex = 0;
 	let lastFrameShownOn = 0;
 
@@ -47,14 +48,14 @@ function App() {
 	const handleKeyDown = (event) => {
 		const key = event.code ?? event.type;
 
-		switch (key) {
-			case "Space":
-				setIsPlaying(!isPlaying);
-				break;
-			case "mousedown":
-				setIsPlaying(!isPlaying);
-				break;
-		}
+		// switch (key) {
+		// 	case "Space":
+		// 		setIsPlaying(true);
+		// 		break;
+		// 	case "mousedown":
+		// 		setIsPlaying(true);
+		// 		break;
+		// }
 	};
 
 	const renderFrame = (scene, canvas) => {
@@ -97,10 +98,16 @@ function App() {
 		});
 	};
 
-	const generateBuffer = (bufferCanvas) => {
-		if (asyncRendering === false && sceneSet.length < 20) {
-			const { randomScene } = generateRandomScene(2);
-			renderFrameAsync(randomScene, bufferCanvas);
+	const generateBuffer = async (bufferCanvas) => {
+		if (asyncRendering === false && sceneSet.length < bufferSize) {
+			const { randomScene } = generateRandomScene(3);
+			await renderFrameAsync(randomScene, bufferCanvas);
+		}
+	};
+
+	const init = async (bufferCanvas) => {
+		for (let i = 0; i < bufferSize; i++) {
+			await generateBuffer(bufferCanvas);
 		}
 	};
 
@@ -112,18 +119,18 @@ function App() {
 
 		generateBuffer(bufferCanvas);
 
-		if (selectedSceneIndex >= 10) {
+		if (selectedSceneIndex >= 1) {
 			// setSceneSet((prev) => prev.slice(0, selectedSceneIndex));
 			sceneSet.splice(0, selectedSceneIndex);
 			selectedSceneIndex = 0;
 		}
 
-		const frame = sceneSet[selectedSceneIndex];
-
 		const [hCenter, vCenter] = [canvas.width / 2, canvas.height / 2];
 		canvasContext.translate(hCenter, vCenter);
-		canvasContext.rotate( -1 * (0.1 * Math.PI) / 180);
+		canvasContext.rotate((-1 * (0.1 * Math.PI)) / 180);
 		canvasContext.translate(-hCenter, -vCenter);
+
+		const frame = sceneSet[selectedSceneIndex];
 		if (frame) {
 			if (now - lastFrameShownOn >= 1000 / targetFPS) {
 				lastFrameShownOn = now;
@@ -183,6 +190,12 @@ function App() {
 		bufferCanvas.width = canvasWidth;
 		bufferCanvas.height = canvasHeight;
 		renderSplashScreen(canvas);
+		init(bufferCanvas).then(() => {
+			setSceneBuffer(sceneSet);
+		});
+		setTimeout(() => {
+			setIsPlaying(true);
+		}, 5000);
 	}, []);
 
 	return (

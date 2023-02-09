@@ -224,12 +224,12 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 		for (let j = 0; j < elementCount; j++) {
 			const n = Math.floor(Math.random() * (maxEdges - 2) + 3);
 			const curveConstructor = exampleMatrices.nGon;
-			const rotationStep = Math.random() / 20;
-			const turnCount = Math.random() * 20;
-			const baseSize = 10;
+			const rotationStep = Math.max(0.005 ,Math.random() / 20);
+			const turnCount = Math.max(2, Math.random() * 20);
+			const baseSize = Math.max(100, Math.random() * 200);
 			const growthFactor = Math.random() * 60;
 			const origin = [(Math.random() - 0.5) * 1000, (Math.random() - 0.5) * 1000];
-			const alpha = Math.max(0.02, Math.random() / 10);
+			const alpha = Math.max(0.05, Math.random() / 10);
 
 			randomScene.push([
 				drawRotations,
