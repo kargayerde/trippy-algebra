@@ -34,7 +34,7 @@ function App() {
 		top: (-1 * (diagonal - screenHeight)) / 2,
 		left: (-1 * (diagonal - screenWidth)) / 2,
 	};
-	const bufferSize = 2;
+	const bufferSize = 20;
 	let asyncRendering = false;
 	let sceneSet = [...sceneBuffer];
 	let selectedSceneIndex = 0;
@@ -119,7 +119,7 @@ function App() {
 
 		generateBuffer(bufferCanvas);
 
-		if (selectedSceneIndex >= 1) {
+		if (selectedSceneIndex >= bufferSize / 2) {
 			// setSceneSet((prev) => prev.slice(0, selectedSceneIndex));
 			sceneSet.splice(0, selectedSceneIndex);
 			selectedSceneIndex = 0;
