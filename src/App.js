@@ -6,47 +6,59 @@ import { useUtils } from "./utils";
 
 function App() {
 	const [screenWidth, screenHeight] = useWindowResize();
-	const [canvasWidth, canvasHeight] = [screenWidth, screenHeight];
-	const { testScenes, generateRandomScene, generateRandomSceneSet, drawAxes, drawGrid } =
-		useUtils({
-			canvasWidth,
-			canvasHeight,
-		});
-	// const [sceneSet, setSceneSet] = useState(testScenes);
-	const [FPS, setFPS] = useState("N/A");
+	const diagonal = screenWidth * Math.SQRT2;
+	// const [canvasWidth, canvasHeight] = [screenWidth, screenHeight];
+	const [canvasWidth, canvasHeight] = [diagonal, diagonal];
+	const {
+		testScenes,
+		exampleMatrices,
+		generateRandomScene,
+		generateRandomSceneSet,
+		drawCurve,
+		drawAxes,
+		drawGrid,
+	} = useUtils({
+		canvasWidth,
+		canvasHeight,
+	});
+	// const [sceneSet, setSceneSet] = useState([]);
 	// const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
+	const [targetFPS, setTargetFPS] = useState(1/3);
+	const [isPlaying, setIsPlaying] = useState(false);
+	const [lastScene, setLastScene] = useState();
 	const canvasStyle = {
 		width: canvasWidth,
 		height: canvasHeight,
 		position: "fixed",
-		top: 0,
-		left: 0,
+		top: -1 * (diagonal - screenHeight) / 2,
+		left: -1 * (diagonal - screenWidth) / 2,
 	};
-	const frameRate = 1;
+
 	let asyncRendering = false;
 	let sceneSet = [];
 	let selectedSceneIndex = 0;
-	let lastFrameShown = 0;
+	let lastFrameShownOn = 0;
 
 	const canvasRef = useRef();
-	const intervalRef = useRef();
+	const bufferCanvasRef = useRef();
+	bufferCanvasRef.current = document.createElement("canvas");
+	const animationRef = useRef();
 
 	const handleKeyDown = (event) => {
-		const key = event.key;
+		const key = event.code ?? event.type;
 
-		// switch (key) {
-		// 	case "ArrowLeft":
-		// 		setSelectedSceneIndex((prev) => Math.max(prev - 1, 0));
-		// 		break;
-		// 	case "ArrowRight":
-		// 		setSelectedSceneIndex((prev) =>
-		// 			Math.min(prev + 1, Object.values(sceneSet).length - 1)
-		// 		);
-		// 		break;
-		// }
+		switch (key) {
+			case "Space":
+				setIsPlaying(!isPlaying);
+				break;
+			case "mousedown":
+				setIsPlaying(!isPlaying);
+				break;
+		}
 	};
 
-	const renderFrame = (scene, context) => {
+	const renderFrame = (scene, canvas) => {
+		const context = canvas.getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 		context.fillStyle = "black";
 		context.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -55,7 +67,7 @@ function App() {
 		// drawGrid(50, context);
 
 		scene.forEach(([func, props]) => {
-			func({ ...props, context });
+			func({ ...props, canvas });
 		});
 	};
 	const renderFrameAsync = async (scene, canvas) => {
@@ -72,85 +84,106 @@ function App() {
 				// drawGrid(50, context);
 
 				scene.forEach(([func, props]) => {
-					func({ ...props, context });
+					func({ ...props, canvas });
 				});
-				// console.log("resolved");
 				createImageBitmap(canvas).then((bitmap) => {
 					sceneSet.push(bitmap);
+					// setSceneSet((prev) => [...prev, bitmap]);
 
 					asyncRendering = false;
 					resolve();
 				});
-				// const bitmap = context.transferToImageBitmap();
 			}, 0);
 		});
 	};
 
-	// const renderWithInterval = () => {
-	// 	clearInterval(intervalRef.current);
-	// 	renderFrame(Object.values(sceneSet)[selectedSceneIndex]);
-	// 	if (selectedSceneIndex === Object.values(sceneSet).length - 1)
-	// 		setSceneSet(generateRandomSceneSet(100, 2));
-
-	// 	intervalRef.current = setInterval(
-	// 		() => setSelectedSceneIndex((prev) => (prev + 1) % Object.values(sceneSet).length),
-	// 		1000 / frameRate
-	// 	);
-	// };
+	const generateBuffer = (bufferCanvas) => {
+		if (asyncRendering === false && sceneSet.length < 20) {
+			const { randomScene } = generateRandomScene(2);
+			renderFrameAsync(randomScene, bufferCanvas);
+		}
+	};
 
 	const renderWithRAF = (timestamp, canvas, bufferCanvas) => {
 		const now = performance.now();
 		const bufferContext = bufferCanvas.getContext("2d");
+		const canvasContext = canvas.getContext("2d");
 		const bitmapContext = canvas.getContext("bitmaprenderer");
-		// console.log({ timestamp, bitmapContext, bufferContext, canvas, bufferCanvas });
-		// console.log({ asyncRendering });
-		if (asyncRendering === false && sceneSet.length < 200) {
-			const { randomScene } = generateRandomScene(2);
-			renderFrameAsync(randomScene, bufferCanvas);
+
+		generateBuffer(bufferCanvas);
+
+		if (selectedSceneIndex >= 10) {
+			// setSceneSet((prev) => prev.slice(0, selectedSceneIndex));
+			sceneSet.splice(0, selectedSceneIndex);
+			selectedSceneIndex = 0;
 		}
 
-		if (selectedSceneIndex >= 1) {
-			let spliceCount = selectedSceneIndex;
-			sceneSet.splice(0, spliceCount);
-			selectedSceneIndex -= spliceCount;
-		}
+		const frame = sceneSet[selectedSceneIndex];
 
-		// context.drawImage(bufferCanvas, 0, 0);
-		// console.log({ sceneSet });
-
-		// console.log(now - lastFrameShown);
-		if (now - lastFrameShown >= 300) {
-			lastFrameShown = now;
-			bitmapContext.transferFromImageBitmap(sceneSet[selectedSceneIndex++]);
-			console.log(sceneSet.length);
+		const [hCenter, vCenter] = [canvas.width / 2, canvas.height / 2];
+		canvasContext.translate(hCenter, vCenter);
+		canvasContext.rotate( -1 * (0.1 * Math.PI) / 180);
+		canvasContext.translate(-hCenter, -vCenter);
+		if (frame) {
+			if (now - lastFrameShownOn >= 1000 / targetFPS) {
+				lastFrameShownOn = now;
+				setLastScene(frame);
+				canvasContext.drawImage(frame, 0, 0);
+				selectedSceneIndex++;
+			} else {
+				canvasContext.drawImage(frame, 0, 0);
+			}
 		}
-		window.requestAnimationFrame((t) => renderWithRAF(t, canvas, bufferCanvas));
+		animationRef.current = window.requestAnimationFrame((t) =>
+			renderWithRAF(t, canvas, bufferCanvas)
+		);
 	};
 
-	// useEffect(() => {
-	// 	setSceneSet(generateRandomSceneSet(100, 2));
-	// }, []);
+	const renderSplashScreen = (canvas) => {
+		const context = canvas.getContext("2d");
+		context.strokeStyle = "white";
+
+		for (let n = 3; n < 100; n++) {
+			drawCurve(exampleMatrices.nGon({ n, size: 50, origin: [-25, -490] }), canvas);
+		}
+	};
+
+	const play = () => {
+		const canvas = canvasRef.current;
+		const bufferCanvas = bufferCanvasRef.current;
+		window.cancelAnimationFrame(animationRef.current);
+		animationRef.current = window.requestAnimationFrame((timestamp) =>
+			renderWithRAF(timestamp, canvas, bufferCanvas)
+		);
+	};
+
+	const pause = () => {
+		const canvas = canvasRef.current;
+		const canvasContext = canvas.getContext("2d");
+		window.cancelAnimationFrame(animationRef.current);
+		lastScene ? canvasContext.drawImage(lastScene, 0, 0) : renderSplashScreen(canvas);
+	};
 
 	useEffect(() => {
-		// renderWithInterval();
 		const canvas = canvasRef.current;
-		const bufferCanvas = document.createElement("canvas");
-		// const bufferCanvas = new OffscreenCanvas(canvasWidth, canvasHeight);
-		canvasRef.current.width = canvasWidth;
-		canvasRef.current.height = canvasHeight;
+		const bufferCanvas = bufferCanvasRef.current;
+		canvas.width = canvasWidth;
+		canvas.height = canvasHeight;
 		bufferCanvas.width = canvasWidth;
 		bufferCanvas.height = canvasHeight;
 
-		// renderFrame(randomScene, bufferContext);
+		isPlaying ? play() : pause();
+	}, [screenHeight, screenWidth, isPlaying]);
 
-		const { randomScene } = generateRandomScene(2);
-		renderFrameAsync(randomScene, bufferCanvas).then(() => {
-			// console.log("call");
-			const requestID = window.requestAnimationFrame((timestamp) =>
-				renderWithRAF(timestamp, canvas, bufferCanvas)
-			);
-		});
-	}, [screenHeight, screenWidth]);
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		const bufferCanvas = bufferCanvasRef.current;
+		canvas.width = canvasWidth;
+		canvas.height = canvasHeight;
+		bufferCanvas.width = canvasWidth;
+		bufferCanvas.height = canvasHeight;
+		renderSplashScreen(canvas);
+	}, []);
 
 	return (
 		<div className="App">
@@ -164,10 +197,8 @@ function App() {
 					zIndex: 100,
 				}}
 			>
-				<div>Width: {screenWidth}</div>
-				<div>Height: {screenHeight}</div>
-				<div>Scene Index: {selectedSceneIndex}</div>
-				<div>Scene Count: {sceneSet.length}</div>
+				<div>Viewport: {screenWidth}x{screenHeight}</div>
+				<div>{isPlaying ? "playing" : "paused"}</div>
 			</div> */}
 			<canvas
 				className="canvas"
@@ -175,6 +206,7 @@ function App() {
 				style={canvasStyle}
 				tabIndex={-1}
 				onKeyDown={handleKeyDown}
+				onMouseDown={handleKeyDown}
 			></canvas>
 		</div>
 	);
