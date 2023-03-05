@@ -1,53 +1,103 @@
 import { Matrix } from "ml-matrix";
 
 export const useUtils = ({ canvasWidth, canvasHeight }) => {
+	const getRotationMatrix = (radianAngle) => {
+		const [sinx, cosx] = [
+			Number(Math.sin(radianAngle).toFixed(3)),
+			Number(Math.cos(radianAngle).toFixed(3)),
+		];
+		const rotationMatrix = new Matrix([
+			[cosx, sinx],
+			[sinx * -1, cosx],
+		]);
+
+		return rotationMatrix;
+	};
+
+	const rotate = (curveMatrix, radianAngle) => curveMatrix.mmul(getRotationMatrix(radianAngle));
+
+	const translate = (curveMatrix, x, y) => {
+		let ret = new Matrix(curveMatrix);
+		const columnCount = curveMatrix.rows; // yes
+
+		for (let i = 0; i < columnCount; i++) {
+			const [vecX, vecY] = [curveMatrix.get(i, 0), curveMatrix.get(i, 1)];
+			ret.set(i, 0, vecX + x);
+			ret.set(i, 1, vecY + y);
+		}
+		return ret;
+	};
+
 	const exampleMatrices = {
-		triangle: (size, origin) =>
+		triangle: ({ size, origin }) =>
 			new Matrix([
 				[origin[0], origin[1]],
 				[origin[0] + size, origin[1]],
 				[origin[0] + size, origin[1] + size],
 			]),
-		square: (size, origin) =>
+		square: ({ size, origin }) =>
 			new Matrix([
 				[origin[0], origin[1]],
 				[origin[0] + size, origin[1]],
 				[origin[0] + size, origin[1] + size],
 				[origin[0], origin[1] + size],
 			]),
-		randocurve: new Matrix([
-			[0, 0],
-			[-50, -200],
-			[220, 50],
-			[220, 150],
-			[69, 420],
-			[-20, 50],
-			[-200, -50],
-			[-158, -100],
-		]),
+		nGon: ({ n, size, origin }) => {
+			const turnAngle = (2 * Math.PI) / n;
+			const baseVector = new Matrix([[size, 0]]);
+			let ret = Matrix.zeros(n, 2);
+			ret.setRow(1, baseVector);
+
+			let prevVector = baseVector;
+
+			for (let i = 2; i < n; i++) {
+				const rotatedBase = rotate(baseVector, turnAngle * (i - 1));
+				let nextVector = Matrix.add(prevVector, rotatedBase);
+				ret.setRow(i, nextVector);
+				prevVector = nextVector;
+			}
+
+			return translate(ret, origin[0], origin[1]);
+		},
+		// randocurve: new Matrix([
+		// 	[0, 0],
+		// 	[-50, -200],
+		// 	[220, 50],
+		// 	[220, 150],
+		// 	[69, 420],
+		// 	[-20, 50],
+		// 	[-200, -50],
+		// 	[-158, -100],
+		// ]),
 	};
 
 	const drawRotations = ({
-		context,
+		canvas,
 		curveConstructor,
+		n,
 		rotationStep,
 		turnCount,
 		baseSize,
 		origin = [0, 0],
 		growthFactor = 0,
 		alpha = 0.1,
+		fullRandom = false,
 	}) => {
-		context.globalAlpha = alpha;
+		const context = canvas.getContext("2d");
+		context.globalAlpha = fullRandom ? Math.random() : alpha;
 		for (let i = 0; i < 2 * turnCount; i += rotationStep) {
-			const angle = Math.PI * i;
-			context.strokeStyle = `hsl(${toDegrees(angle)}, 100%, 50%)`;
+			const [angle, saturation, lightness] = fullRandom
+				? [Math.PI * 2 * Math.random(), 100 * Math.random(), 100 * Math.random()]
+				: [Math.PI * i, 100, 50];
+
+			context.strokeStyle = `hsl(${toDegrees(angle)}, ${saturation}%, ${lightness}%)`;
 
 			const outputCurve = rotate(
-				curveConstructor(baseSize + i * growthFactor, origin),
+				curveConstructor({ size: baseSize + i * growthFactor, origin, n }),
 				angle
 			);
 
-			drawCurve(outputCurve, context);
+			drawCurve(outputCurve, canvas);
 		}
 
 		context.globalAlpha = 1;
@@ -86,8 +136,6 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 			context.lineTo(canvasWidth, i * stepSize);
 		}
 
-		context.strokeStyle = "yellow";
-
 		for (let i = 0; i <= hDimension; i++) {
 			context.moveTo(i * stepSize + verticalLineOffset, 0);
 			context.lineTo(i * stepSize + verticalLineOffset, canvasHeight);
@@ -97,33 +145,8 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 		context.globalAlpha = 1;
 	};
 
-	const getRotationMatrix = (radianAngle) => {
-		const [sinx, cosx] = [
-			Number(Math.sin(radianAngle).toFixed(3)),
-			Number(Math.cos(radianAngle).toFixed(3)),
-		];
-		const rotationMatrix = new Matrix([
-			[cosx, sinx],
-			[sinx * -1, cosx],
-		]);
-
-		return rotationMatrix;
-	};
-
-	const rotate = (curveMatrix, radianAngle) => curveMatrix.mmul(getRotationMatrix(radianAngle));
-
-	const translate = (curveMatrix, x, y) => {
-		let ret = new Matrix(curveMatrix);
-		const columnCount = curveMatrix.rows; // yes
-
-		for (let i = 0; i < columnCount; i++) {
-			const [vecX, vecY] = [curveMatrix.get(i, 0), curveMatrix.get(i, 1)];
-			ret.set(i, 0, vecX + x);
-			ret.set(i, 1, vecY + y);
-		}
-		return ret;
-	};
-	const drawCurve = (matrix, context) => {
+	const drawCurve = (matrix, canvas) => {
+		const context = canvas.getContext("2d");
 		let startPoint = [];
 		context.lineWidth = 1;
 		const columnCount = matrix.rows; // yes
@@ -196,38 +219,55 @@ export const useUtils = ({ canvasWidth, canvasHeight }) => {
 		],
 	};
 
+	const generateRandomScene = (elementCount, maxEdges = 8) => {
+		let randomScene = [];
+		for (let j = 0; j < elementCount; j++) {
+			const n = Math.floor(Math.random() * (maxEdges - 2) + 3);
+			const curveConstructor = exampleMatrices.nGon;
+			const rotationStep = Math.max(0.005 ,Math.random() / 20);
+			const turnCount = Math.max(2, Math.random() * 20);
+			const baseSize = Math.max(100, Math.random() * 200);
+			const growthFactor = Math.random() * 60;
+			const origin = [(Math.random() - 0.5) * 1000, (Math.random() - 0.5) * 1000];
+			const alpha = Math.max(0.05, Math.random() / 10);
+
+			randomScene.push([
+				drawRotations,
+				{
+					curveConstructor,
+					n,
+					rotationStep,
+					turnCount,
+					baseSize,
+					growthFactor,
+					origin,
+					alpha,
+				},
+			]);
+		}
+
+		const identifier = `rand-${elementCount}el`;
+
+		return { identifier, randomScene };
+	};
+
 	const generateRandomSceneSet = (size, elementCount) => {
 		let randomSceneSet = {};
 		for (let i = 0; i < size; i++) {
-			let randomScene = [];
-			for (let j = 0; j < elementCount; j++) {
-				const curveConstructor =
-					Math.random() > 0.5 ? exampleMatrices.square : exampleMatrices.triangle;
-				const rotationStep = Math.random() / 20;
-				const turnCount = Math.random() * 40;
-				const baseSize = 10;
-				const growthFactor = Math.random() * 60;
-				const origin = [(Math.random() - 0.5) * 1000, (Math.random() - 0.5) * 1000];
-				const alpha = Math.random() / 10;
+			const { identifier, randomScene } = generateRandomScene(elementCount);
 
-				randomScene.push([
-					drawRotations,
-					{
-						curveConstructor,
-						rotationStep,
-						turnCount,
-						baseSize,
-						growthFactor,
-						origin,
-						alpha,
-					},
-				]);
-			}
-			randomSceneSet[`rand-${i}-${elementCount}el`] = randomScene;
+			randomSceneSet[i + "-" + identifier] = randomScene;
 		}
-		console.log({ randomSceneSet });
 		return randomSceneSet;
 	};
 
-	return { testScenes, generateRandomSceneSet, drawAxes, drawGrid };
+	return {
+		testScenes,
+		exampleMatrices,
+		generateRandomSceneSet,
+		generateRandomScene,
+		drawCurve,
+		drawAxes,
+		drawGrid,
+	};
 };
